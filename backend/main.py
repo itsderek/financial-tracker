@@ -37,3 +37,8 @@ async def create_category(cat: Category, session: AsyncSession = Depends(get_ses
 async def list_categories(session: AsyncSession = Depends(get_session)):
     result = await session.execute(select(Category))
     return result.scalars().all()
+
+
+@app.get("/")
+async def read_root():
+    return {"Hello": "World"}
