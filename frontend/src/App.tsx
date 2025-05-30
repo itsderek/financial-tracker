@@ -5,6 +5,7 @@ import "./App.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { ModeToggle } from "./components/mode-toggle";
 import FileUpload from "./components/file-upload";
+import { DatabaseTester, SelectTester, InsertTester } from "./components/database-tester";
 
 function App() {
   const [count, setCount] = useState(0);
@@ -29,6 +30,8 @@ function App() {
       </div>
       <p className="read-the-docs">Click on the Vite and React logos to learn more</p>
       <FileUpload></FileUpload>
+      <SelectTester></SelectTester>
+      <InsertTester></InsertTester>
     </ThemeProvider>
   );
 }

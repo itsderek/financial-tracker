@@ -51,6 +51,37 @@ async def list_categories(session: AsyncSession = Depends(get_session)):
     return result.scalars().all()
 
 
+@app.get("/sayhi")
+async def sayHi(session: AsyncSession = Depends(get_session)):
+    print("hi!")
+    result = await session.exec(select(Transaction))
+    transactions = result.scalars().all()
+
+    for tx in transactions:
+        print(tx)
+    
+    return transactions
+
+from datetime import date
+
+@app.post("/sayhi")
+async def postHi(session: AsyncSession = Depends(get_session)):
+    print("woah there!")
+
+    tx = Transaction(
+        date=date.today(),
+        description="Test transaction",
+        amount=42.00,
+        category="Test"
+    )
+
+    session.add(tx)
+    await session.commit()
+    await session.refresh(tx)
+
+    return {"message": "Transaction inserted", "transaction": tx}
+
+
 @app.get("/hi")
 async def read_root():
     return {"Hello": "World"}
@@ -58,10 +89,27 @@ async def read_root():
 import csv
 from io import StringIO
 import logging
+from pathlib import Path
+import json
+
+CONFIG_PATH = Path("/app/config/Ascend Import Metadata.json")
 
 @app.post("/upload-csv")
 async def upload_csv(file: UploadFile = File(...)):
     print('bigtest')
+
+    # load config file
+    if CONFIG_PATH.exists():
+        with open(CONFIG_PATH) as f:
+            config_data = json.load(f)
+        desired_fields = config_data.get("fields", [])
+    else:
+        print('error in loading config file')
+        return {"error": "config file not found."}
+    
+
+
+
     print(file.content_type)
     # if 'csv' not in file.content_type:
     # # if file.content_type != "text/csv":
@@ -71,9 +119,8 @@ async def upload_csv(file: UploadFile = File(...)):
     contents = await file.read()
     decoded = contents.decode("utf-8")
 
-    desired_fields = ['Account ID', 'Date', 'Description', 'Amount']
+    #desired_fields = ['Account ID', 'Date', 'Description', 'Amount']
     extracted_data = []
-
     reader = csv.DictReader(StringIO(decoded))
 
     for row in reader:
