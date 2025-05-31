@@ -1,16 +1,21 @@
 from fastapi import FastAPI, Depends, UploadFile, File
-from sqlmodel import select
+from sqlmodel import select, Session
 from models import Transaction, Category
-from database import async_session, init_db
+from database import init_db, engine
 from sqlmodel.ext.asyncio.session import AsyncSession
 from fastapi.middleware.cors import CORSMiddleware
 
 from contextlib import asynccontextmanager
-from typing import AsyncGenerator
+
+import csv
+from io import StringIO
+from pathlib import Path
+import json
+from datetime import date
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    await init_db()  # startup logic
+    init_db()
     yield
 
 app = FastAPI(lifespan=lifespan)
@@ -22,52 +27,24 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-async def get_session() -> AsyncGenerator[AsyncSession, None]:
-    async with async_session() as session:
-        yield session
-
-@app.post("/transactions/", response_model=Transaction)
-async def create_transaction(tx: Transaction, session: AsyncSession = Depends(get_session)):
-    session.add(tx)
-    await session.commit()
-    await session.refresh(tx)
-    return tx
-
-@app.get("/transactions/", response_model=list[Transaction])
-async def list_transactions(session: AsyncSession = Depends(get_session)):
-    result = await session.exec(select(Transaction))
-    return result.scalars().all()
-
-@app.post("/categories/", response_model=Category)
-async def create_category(cat: Category, session: AsyncSession = Depends(get_session)):
-    session.add(cat)
-    await session.commit()
-    await session.refresh(cat)
-    return cat
-
-@app.get("/categories/", response_model=list[Category])
-async def list_categories(session: AsyncSession = Depends(get_session)):
-    result = await session.exec(select(Category))
-    return result.scalars().all()
-
 
 @app.get("/sayhi")
-async def sayHi(session: AsyncSession = Depends(get_session)):
+async def sayHi():
     print("hi!")
-    result = await session.exec(select(Transaction))
-    transactions = result.scalars().all()
+    with Session(engine) as session:
+        result = session.exec(select(Transaction))
+        transactions = result.all()
+        for tx in transactions:
+            print(f'another transaction: {tx}')
+            # print(tx)
+        
+        return transactions
 
-    for tx in transactions:
-        print(tx)
-    
-    return transactions
 
-from datetime import date
 
 @app.post("/sayhi")
-async def postHi(session: AsyncSession = Depends(get_session)):
+async def postHi():
     print("woah there!")
-
     tx = Transaction(
         date=date.today(),
         description="Test transaction",
@@ -75,30 +52,19 @@ async def postHi(session: AsyncSession = Depends(get_session)):
         category="Test"
     )
 
-    session.add(tx)
-    await session.commit()
-    await session.refresh(tx)
+    with Session(engine) as session:
+        session.add(tx)
+        session.commit()
+        session.refresh(tx)
 
     return {"message": "Transaction inserted", "transaction": tx}
 
 
-@app.get("/hi")
-async def read_root():
-    return {"Hello": "World"}
-
-import csv
-from io import StringIO
-import logging
-from pathlib import Path
-import json
 
 CONFIG_PATH = Path("/app/config/Ascend Import Metadata.json")
 
 @app.post("/upload-csv")
 async def upload_csv(file: UploadFile = File(...)):
-    print('bigtest')
-
-    # load config file
     if CONFIG_PATH.exists():
         with open(CONFIG_PATH) as f:
             config_data = json.load(f)
@@ -108,18 +74,9 @@ async def upload_csv(file: UploadFile = File(...)):
         return {"error": "config file not found."}
     
 
-
-
-    print(file.content_type)
-    # if 'csv' not in file.content_type:
-    # # if file.content_type != "text/csv":
-    #     print('big error')
-    #     return {"error": "Only CSV files are allowed"}
-
     contents = await file.read()
     decoded = contents.decode("utf-8")
 
-    #desired_fields = ['Account ID', 'Date', 'Description', 'Amount']
     extracted_data = []
     reader = csv.DictReader(StringIO(decoded))
 
