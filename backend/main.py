@@ -60,6 +60,8 @@ async def postHi():
     return {"message": "Transaction inserted", "transaction": tx}
 
 
+def transactionToSQL(reader):
+    pass
 
 CONFIG_PATH = Path("/app/config/Ascend Import Metadata.json")
 
