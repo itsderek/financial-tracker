@@ -37,12 +37,15 @@ export function SelectTester() {
   const tester = async () => {
     console.log("inside select");
     try {
-      const response = await fetch("http://localhost:8000/sayhi", {
+      // const response = await fetch("http://localhost:8000/sayhi", {
+      const response = await fetch("http://localhost:8000/get-accounts", {
         method: "GET",
       });
 
       if (response.ok) {
         alert("worked");
+        const data = await response.json();
+        console.log("Response JSON: ", data);
       } else {
         alert("failed");
       }

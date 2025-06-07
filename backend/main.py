@@ -1,9 +1,10 @@
 from fastapi import FastAPI, Depends, UploadFile, File
 from sqlmodel import select, Session
-from models import Transaction, Category
+from models import Transaction, Category, Account
 from database import init_db, engine
 from sqlmodel.ext.asyncio.session import AsyncSession
 from fastapi.middleware.cors import CORSMiddleware
+from typing import List
 
 from contextlib import asynccontextmanager
 
@@ -26,6 +27,13 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.get("/get-accounts", response_model=List[Account])
+async def getAccounts():
+    with Session(engine) as session:
+        results = session.exec(select(Account)).all()
+        return results
 
 
 @app.get("/sayhi")

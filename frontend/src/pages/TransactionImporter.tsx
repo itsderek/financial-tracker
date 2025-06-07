@@ -5,8 +5,6 @@ import { SelectTester, InsertTester } from "@/components/database-tester";
 import Papa, { type ParseResult } from "papaparse";
 import { Button } from "@/components/ui/button";
 
-import { IconLoader } from "@tabler/icons-react";
-
 import {
   Table,
   TableBody,
@@ -20,6 +18,7 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Badge } from "@/components/ui/badge";
 
 type CSVRow = Record<string, string>;
 
@@ -82,7 +81,6 @@ function TransactionImporter() {
               <Button onClick={() => setImporting(true)}>Import Transactions to Database</Button>
             </div>
             <Table>
-              {/* {hasHeader && !Array.isArray(data[0]) && ( */}
               <TableHeader>
                 <TableRow>
                   {importing ? <TableHead>Import Status</TableHead> : null}
@@ -91,10 +89,6 @@ function TransactionImporter() {
                     ? Object.keys(data[0]).map((key) => <TableHead key={key}>{key}</TableHead>)
                     : Array.isArray(data[0]) &&
                       data[0]?.map((_, index) => <TableHead key={index}>{`Field ${index + 1}`}</TableHead>)}
-
-                  {/* {Object.keys(data[0]).map((key) => (
-                      <TableHead key={key}>{key}</TableHead>
-                    ))} */}
                 </TableRow>
               </TableHeader>
 
@@ -103,7 +97,7 @@ function TransactionImporter() {
                   <TableRow key={rowIndex}>
                     {importing && (
                       <TableCell>
-                        <IconLoader stroke={2} />
+                        <Badge className="bg-blue-500 font-bold text-white">Processing</Badge>
                       </TableCell>
                     )}
                     {Array.isArray(row)
