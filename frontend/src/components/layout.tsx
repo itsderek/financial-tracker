@@ -8,8 +8,8 @@ export default function Layout() {
     <SidebarProvider>
       <AppSidebar />
       <main>
-        <ModeToggle />
         <SidebarTrigger />
+        <ModeToggle />
         <Outlet />
       </main>
     </SidebarProvider>

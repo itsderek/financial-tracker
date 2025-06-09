@@ -33,6 +33,7 @@ class Account(SQLModel, table=True):
     account_type_id: int = Field(foreign_key="accounttype.id")
     institution: Optional[str] = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    configuration: dict = Field(sa_column=Column(JSON))
 
     transactions: List["Transaction"] = Relationship(back_populates="account")
     account_type: Optional["AccountType"] = Relationship(back_populates="accounts")

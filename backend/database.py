@@ -1,12 +1,8 @@
 import os
-from sqlmodel import Session, SQLModel, create_engine
+from sqlmodel import Session, SQLModel, create_engine, select
 from dotenv import load_dotenv
 
 load_dotenv()
-
-# DATABASE_URL = "postgresql+psycopg2://finance_user:finance_pass@db:5432/finance_db"
-#DATABASE_URL="postgresql://finance_user:finance_pass@db:5432/finance_db"
-#engine = create_engine(DATABASE_URL, echo=True, future=True)
 
 DATABASE_URL = os.getenv("DATABASE_URL")
 if not DATABASE_URL:
@@ -21,5 +17,30 @@ def get_session():
 async_session = get_session()
 
 def init_db():
-    #engine = create_engine(DATABASE_URL, echo=True, future=True)
     SQLModel.metadata.create_all(engine)
+
+    with Session(engine) as session:
+        from models import AccountType
+
+        existing = session.exec(select(AccountType)).first()
+        if not existing:
+            default_account_types = [
+                AccountType(name="Bank Accout"),
+                AccountType(name="Savings Account"),
+                AccountType(name="Credit Card"),
+            ]
+            session.add_all(default_account_types)
+            session.commit()
+
+
+    with Session(engine) as session:
+        from models import Account
+
+        existing = session.exec(select(Account)).first()
+        if not existing:
+            default_account_types = [
+                Account(name="TEST", account_type_id=1, institution="TEST", configuration={}),
+            ]
+
+            session.add_all(default_account_types)
+            session.commit()
