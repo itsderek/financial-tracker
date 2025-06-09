@@ -1,16 +1,6 @@
-import { ThemeProvider } from "@/components/theme-provider";
-import { ModeToggle } from "@/components/mode-toggle";
 import { useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
-import {
-  Card,
-  CardAction,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
 interface Account {
@@ -41,8 +31,7 @@ function AccountCards() {
   }, []);
 
   return (
-    <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
-      <ModeToggle />
+    <>
       <h1 className="text-2xl font-bold mb-4">Available Accounts</h1>
 
       <div className="grid gap-4">
@@ -51,6 +40,9 @@ function AccountCards() {
             <CardHeader>
               <CardTitle>{account.name}</CardTitle>
             </CardHeader>
+            <CardContent>
+              <Button onClick={() => navigate("/import-transactions")}>+</Button>
+            </CardContent>
           </Card>
         ))}
       </div>
@@ -60,10 +52,10 @@ function AccountCards() {
           <CardTitle>Add Account</CardTitle>
         </CardHeader>
         <CardContent>
-          <Button onClick={() => navigate("/import-transactions")}>+</Button>
+          <Button onClick={() => navigate("/add-account")}>+</Button>
         </CardContent>
       </Card>
-    </ThemeProvider>
+    </>
   );
 }
 

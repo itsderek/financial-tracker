@@ -1,20 +1,9 @@
-import { ThemeProvider } from "@/components/theme-provider";
-import { ModeToggle } from "@/components/mode-toggle";
 import { useEffect, useState } from "react";
 import { SelectTester, InsertTester } from "@/components/database-tester";
 import Papa, { type ParseResult } from "papaparse";
 import { Button } from "@/components/ui/button";
 
-import {
-  Table,
-  TableBody,
-  TableCaption,
-  TableCell,
-  TableFooter,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -56,9 +45,7 @@ function TransactionImporter() {
   };
 
   return (
-    <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
-      <ModeToggle></ModeToggle>
-
+    <>
       <h1>Import Transactions</h1>
 
       <SelectTester></SelectTester>
@@ -130,7 +117,7 @@ function TransactionImporter() {
           <p>No data to display</p>
         )}
       </div>
-    </ThemeProvider>
+    </>
   );
 }
 
