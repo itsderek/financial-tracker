@@ -51,7 +51,14 @@ function TransactionImporter() {
       <SelectTester></SelectTester>
       <InsertTester></InsertTester>
 
-      <input type="file" accept=".csv" onChange={handleFileChange} />
+      <div>
+        <label htmlFor="csv-upload">
+          <Button type="button" asChild>
+            <span>Upload CSV</span>
+          </Button>
+        </label>
+        <input id="csv-upload" type="file" accept=".csv" onChange={handleFileChange} className="hidden" />
+      </div>
 
       <div>
         {data.length > 0 ? (
