@@ -2,6 +2,7 @@ import { useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import axios, { AxiosError } from "axios";
 
 interface Account {
   id: number;
@@ -15,15 +16,16 @@ function AccountCards() {
   useEffect(() => {
     const fetchAccounts = async () => {
       try {
-        const response = await fetch("http://localhost:8000/get-accounts");
-        if (response.ok) {
-          const data = await response.json();
-          setAccounts(data);
-        } else {
-          console.error("Failed to fetch accounts:", response.status);
-        }
+        const response = await axios.get<Account[]>("http://localhost:8000/get-accounts");
+        setAccounts(response.data); // Axios parses JSON automatically
       } catch (error) {
-        console.error("Error fetching accounts:", error);
+        const err = error as AxiosError;
+        // Axios includes status info in the error response
+        if (err.response) {
+          console.error("Failed to fetch accounts:", err.response.status);
+        } else {
+          console.error("Error fetching accounts:", err.message);
+        }
       }
     };
 

@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
-import { SelectTester, InsertTester } from "@/components/database-tester";
 import Papa, { type ParseResult } from "papaparse";
-import { Button } from "@/components/ui/button";
 
+import { SelectTester, InsertTester } from "@/components/database-tester";
+import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
