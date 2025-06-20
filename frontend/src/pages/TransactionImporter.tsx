@@ -1,13 +1,14 @@
 import { useEffect, useState } from "react";
+import { useLocation } from "react-router-dom";
 import Papa, { type ParseResult } from "papaparse";
 
-import { SelectTester, InsertTester } from "@/components/database-tester";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
 
 type CSVRow = Record<string, string>;
 
@@ -16,6 +17,9 @@ function TransactionImporter() {
   const [hasHeader, setHasHeader] = useState(true);
   const [data, setData] = useState<CSVRow[]>([]);
   const [importing, setImporting] = useState(false);
+
+  const location = useLocation();
+  const { csvData, configuration } = location.state || {};
 
   const parseCSV = (csvFile: File, header: boolean) => {
     Papa.parse(csvFile, {
@@ -48,8 +52,11 @@ function TransactionImporter() {
     <>
       <h1>Import Transactions</h1>
 
-      <SelectTester></SelectTester>
-      <InsertTester></InsertTester>
+      <Card className="max-w-sm">
+        <CardContent>
+          <Button onClick={() => console.log(csvData, configuration)}>Print Page State</Button>
+        </CardContent>
+      </Card>
 
       <div>
         <label htmlFor="csv-upload">

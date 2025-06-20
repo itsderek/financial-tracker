@@ -1,179 +1,204 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
-
-import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm } from "react-hook-form";
-import { z } from "zod";
-
-import Papa, { type ParseResult } from "papaparse";
-
+import { DataTable } from "../components/data-table";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import type { ColumnDef } from "@tanstack/react-table";
 import { Input } from "@/components/ui/input";
+import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form";
+import { useState, useEffect } from "react";
+import { useForm } from "react-hook-form";
+import { useNavigate } from "react-router-dom";
+import { useCSVReader } from "react-papaparse";
+import axios from "axios";
+import { z } from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem, SelectGroup } from "@/components/ui/select";
+interface AccountType {
+  id: number;
+  name: string;
+}
 
-type CSVRow = Record<string, string>;
-type RequiredField = "amount" | "date" | "description";
-
-type AmountMapping = {
-  date?: string;
-  description?: string;
-  amount?: string | { debit: string; credit: string };
-};
-
-const formSchema = z.object({
-  username: z.string().min(2, {
-    message: "Username must be at least 2 characters.",
-  }),
-  accounttype: z.enum(["Bank Account", "Savings Account", "Credit Card"], {
-    errorMap: () => ({ message: "Select a valid Account Type" }),
-  }),
-  institution: z
-    .string()
-    .optional()
-    .refine((val) => !val || val.length >= 2, {
-      message: "Institution must be blank or at least 2 characters.",
-    }),
-  starting_balance: z
-    .number({
-      required_error: "Starting balance is required",
-      invalid_type_error: "Starting balance must be a number",
-    })
-    .refine((val) => Number.isFinite(val) && Number(val.toFixed(2)) === val, {
-      message: "Starting balance must have at most two decimal places",
-    }),
-});
-
-const fieldMappingSchema = z.object({
-  date: z.string().min(1, "Date field is required"),
-  description: z.string().min(1, "Description field is required"),
-  amount: z.union([
-    z.string().min(1, "Amount field is required"),
-    z.object({
-      debit: z.string().min(1),
-      credit: z.string().min(1),
-    }),
-  ]),
+const schema = z.object({
+  accountname: z.string().min(2, "Account Name is required"),
+  accounttype: z.number(),
+  balance: z.coerce.number(),
+  configuration: z.record(z.string().nullable()).refine(
+    (obj) => {
+      // Count how many values are NOT null
+      const nonNullCount = Object.values(obj).filter((v) => v !== null).length;
+      return nonNullCount >= 3;
+    },
+    {
+      message: "At least 3 configuration fields must be selected (non-null).",
+    }
+  ),
 });
 
 export default function AddAccount() {
-  // 1. Define your form.
-  const form = useForm<z.infer<typeof formSchema>>({
-    resolver: zodResolver(formSchema),
+  const { CSVReader } = useCSVReader();
+  const [accountTypes, setAccountTypes] = useState<AccountType[]>([]);
+  const [columns, setColumns] = useState<ColumnDef<any, any>[]>([]);
+  const [data, setData] = useState<any[]>([]);
+  const [hasHeader, setHasHeaders] = useState<boolean>(true);
+  const [parsedResults, setParsedResults] = useState<any>(null);
+  const [configuration, setConfiguration] = useState<{ [key: string]: string | null } | undefined>();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const fetchAccountTypes = async () => {
+      try {
+        const response = await axios.get<AccountType[]>("http://localhost:8000/api/get-account-types");
+        setAccountTypes(response.data);
+      } catch (error) {
+        console.error("Error fetching account types:", error);
+      }
+    };
+
+    fetchAccountTypes();
+  }, []);
+
+  const form = useForm<z.infer<typeof schema>>({
+    resolver: zodResolver(schema),
     defaultValues: {
-      username: "",
-      institution: "",
-      accounttype: "Bank Account",
-      starting_balance: 0.0,
+      accountname: "",
+      accounttype: 0,
+      balance: 0,
     },
   });
 
-  // 2. Define a submit handler.
-  function onSubmit(values: z.infer<typeof formSchema>) {
-    console.log(values);
-    console.log(fieldMapping);
+  const onSubmit = (data: z.infer<typeof schema>) => {
+    console.log("Validated form data:", data);
 
-    console.log("data_headers: ", data_headers_ref.current);
+    const new_account = {
+      name: data.accountname,
+      account_type_id: data.accounttype,
+      configuration: data,
+    };
 
-    // try {
-    //   const validatedMapping = fieldMappingSchema.parse(fieldMapping);
-    //   console.log("✅ Form Values", values);
-    //   console.log("✅ Valid Field Mapping", validatedMapping);
-    // } catch (error) {
-    //   if (error instanceof z.ZodError) {
-    //     // You could show toast or log specific errors
-    //     alert("❌ Field mapping is invalid: " + error.errors.map((e) => e.message).join(", "));
-    //   } else {
-    //     console.error("Unexpected error validating fieldMapping:", error);
-    //   }
-    // }
-  }
+    axios
+      .post("/api/create-account", new_account)
+      .then((response) => {
+        console.log("Success: ", response);
 
-  const [file, setFile] = useState<File | null>(null);
-  const [data, setData] = useState<CSVRow[]>([]);
-  const [hasHeader, setHasHeader] = useState(false);
-  const [fieldMapping, setFieldMapping] = useState<AmountMapping>({});
+        navigate("/import-transactions", {
+          state: {
+            csvData: parsedResults,
+            configuration: data.configuration,
+          },
+        });
+      })
+      .catch((err) => {
+        console.log("Error: ", err);
+      });
+  };
 
-  const parseCSV = (csvFile: File, header: boolean) => {
-    Papa.parse(csvFile, {
+  const csvRead = (results: any, hasHeaders: boolean) => {
+    setParsedResults(results);
+
+    let headers: string[] = [];
+    let rows: string[][] = [];
+
+    if (hasHeaders) {
+      headers = results.data[0] as string[];
+      rows = results.data.slice(1);
+    } else {
+      rows = results.data as string[][];
+      const columnCount = rows[0]?.length || 0;
+      headers = Array.from({ length: columnCount }, (_, index) => `Column${index + 1}`);
+    }
+
+    const columns = headers.map((header: string) => ({
+      accessorKey: header,
       header,
-      skipEmptyLines: true,
-      complete: (results: ParseResult<CSVRow>) => {
-        setData(results.data);
-        console.log(results.data);
-      },
-      error: (error) => {
-        console.error("CSV parse error: ", error);
-      },
+    }));
+
+    const data = rows.map((row: any[]) => {
+      const obj: Record<string, any> = {};
+      row.forEach((value, index) => {
+        obj[headers[index]] = value;
+      });
+      return obj;
+    });
+
+    setColumns(columns);
+    setData(data);
+
+    const config = columns.reduce((acc, val) => {
+      acc[val.header] = null;
+      return acc;
+    }, {} as { [key: string]: string | null });
+
+    setConfiguration(config);
+  };
+
+  const handleSetHasHeaders = () => {
+    const newHasHeaders = !hasHeader;
+    setHasHeaders(newHasHeaders);
+
+    if (parsedResults) {
+      csvRead(parsedResults, newHasHeaders);
+    }
+  };
+
+  const handleSetConfiguration = (key: string, val: string | null) => {
+    setConfiguration((prev) => {
+      if (!prev) return prev;
+
+      // Create a new copy of the config
+      const newConfig: { [key: string]: string | null } = {};
+
+      for (const k in prev) {
+        // Remove the selected value from other keys
+        if (k !== key && prev[k] === val) {
+          newConfig[k] = null;
+        } else {
+          newConfig[k] = prev[k];
+        }
+      }
+
+      // Set the new value for this key
+      newConfig[key] = val;
+
+      return newConfig;
     });
   };
 
   useEffect(() => {
-    if (file) {
-      parseCSV(file, hasHeader);
-    }
-  }, [file, hasHeader]);
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selected = e.target.files?.[0];
-    if (selected) {
-      setFile(selected);
-    }
-  };
-
-  const handleFieldMappingChange = (field: RequiredField, column: string) => {
-    setFieldMapping((prev) => {
-      // Start with previous mapping
-      const updated = { ...prev };
-
-      // Remove this column from any other field
-      (Object.keys(updated) as RequiredField[]).forEach((key) => {
-        if (updated[key] === column && key !== field) {
-          delete updated[key];
-        }
-      });
-
-      // Update the selected field with the new column
-      updated[field] = column;
-
-      data_headers_ref.current[column] = field;
-      // console.log("hi");
-
-      return updated;
-    });
-  };
-
-  const REQUIRED_FIELDS: { label: string; value: RequiredField }[] = [
-    { value: "date", label: "Transaction Date" },
-    { value: "description", label: "Transaction Description" },
-    { value: "amount", label: "Transaction Amount" },
-  ];
-
-  // const data_headers: CSVRow = {};
-
-  const data_headers_ref = useRef<CSVRow>({});
+    form.setValue("configuration", configuration || {});
+  }, [configuration]);
 
   return (
-    <div className="w-full max-w-8xl mx-auto px-4">
-      <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-          <Card className="min-w-lg max-w-lg p-4">
+    <>
+      <Card className="min-w-lg max-w-lg p-4">
+        <Form {...form}>
+          <form
+            id="mainForm"
+            onSubmit={form.handleSubmit((data) => {
+              onSubmit(data);
+            })}
+            className="mb-4 p-4 border rounded space-y-4"
+          >
             <FormField
               control={form.control}
-              name="username"
+              name="accountname"
               render={({ field }) => (
                 <FormItem className="flex flex-col gap-1">
                   <div className="flex items-center gap-1">
-                    <FormLabel className="w-32 text-right">Username</FormLabel>
+                    <FormLabel className="w-32 text-right">Account Name</FormLabel>
                     <FormControl>
-                      <Input placeholder="shadcn" {...field} />
+                      <Input type="text" placeholder="shadcn" {...field} />
                     </FormControl>
                   </div>
                   <FormMessage className="ml-32" />
@@ -184,183 +209,83 @@ export default function AddAccount() {
               control={form.control}
               name="accounttype"
               render={({ field }) => (
-                <FormItem className="flex flex-col gap-1">
-                  <div className="flex items-center gap-1">
-                    <FormLabel className="w-32 text-right">Account Type</FormLabel>
-                    <FormControl>
-                      <Select onValueChange={field.onChange} value={field.value}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select account type" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="Bank Account">Bank Account</SelectItem>
-                          <SelectItem value="Savings Account">Savings Account</SelectItem>
-                          <SelectItem value="Credit Card">Credit Card</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </FormControl>
-                  </div>
-                  <FormMessage className="ml-32" />
-                </FormItem>
+                <div className="flex items-center gap-1">
+                  <FormLabel className="w-32 text-right">Account Type</FormLabel>
+                  <Select
+                    onValueChange={(val) => field.onChange(Number(val))}
+                    value={field.value?.toString() || ""}
+                    defaultValue={field.value?.toString() || ""}
+                  >
+                    <SelectTrigger className="w-[200px]">
+                      <SelectValue placeholder="Select Account Type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectGroup>
+                        <SelectLabel>Account Types</SelectLabel>
+                        {accountTypes.map((type) => (
+                          <SelectItem key={type.id} value={type.id.toString()}>
+                            {type.name}
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
+                </div>
               )}
             />
             <FormField
               control={form.control}
-              name="institution"
+              name="balance"
               render={({ field }) => (
-                <FormItem className="flex flex-col gap-1">
-                  <div className="flex items-center gap-1">
-                    <FormLabel className="w-32 text-right">Institution</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Megabux Bank" {...field} />
-                    </FormControl>
-                  </div>
-                  <FormMessage className="ml-32" />
+                <FormItem className="flex items-center space-x-2">
+                  <FormLabel className="w-32">Balance Amount</FormLabel>
+                  <FormControl>
+                    <Input type="number" step="0.01" placeholder="Enter balance" {...field} />
+                  </FormControl>
+                  <FormMessage />
                 </FormItem>
               )}
             />
-            <FormField
-              control={form.control}
-              name="starting_balance"
-              render={({ field }) => (
-                <FormItem className="flex flex-col gap-1">
-                  <div className="flex items-center gap-1">
-                    <FormLabel className="w-32 text-right">Starting Balance</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        step="0.01"
-                        placeholder="0.00"
-                        {...field}
-                        onChange={(e) => field.onChange(parseFloat(e.target.value))}
-                      />
-                    </FormControl>
-                  </div>
-                  <FormMessage className="ml-32" />
-                </FormItem>
-              )}
-            />
-          </Card>
-          <Button type="submit">Submit</Button>
-          <Card className="w-full">
-            <CardHeader>
-              <CardTitle>Transactions</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div>
-                <label htmlFor="csv-upload">
-                  <Button type="button" asChild>
-                    <span>Upload CSV</span>
-                  </Button>
-                </label>
-                <input id="csv-upload" type="file" accept=".csv" onChange={handleFileChange} className="hidden" />
+          </form>
+        </Form>
+      </Card>
+      <Button className="m-5" type="submit" form="mainForm">
+        Submit Form
+      </Button>
+      <Card className="min-w-lg p-4">
+        <CSVReader onUploadAccepted={csvRead}>
+          {({ getRootProps, acceptedFile }: any) => (
+            <>
+              <div className="flex gap-2 max-w-xl">
+                <Button onClick={() => console.log(configuration)}>Console Log Config</Button>
+                <Button type="button" {...getRootProps()}>
+                  Browse file
+                </Button>
               </div>
               <div>
-                {data.length > 0 ? (
-                  <div>
-                    <div className="flex items-center gap-3">
-                      <Checkbox
-                        id="headerrow"
-                        checked={hasHeader}
-                        onCheckedChange={(checked) => {
-                          setHasHeader(!!checked);
-                        }}
-                      />
-                      <Label htmlFor="headerrow">CSV has header row</Label>
+                {acceptedFile && (
+                  <Card className="p-4">
+                    <div className="flex gap-2">
+                      <Label>Has Headers</Label>
+                      <Checkbox checked={hasHeader} onCheckedChange={handleSetHasHeaders} />
                     </div>
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          {hasHeader && !Array.isArray(data[0])
-                            ? Object.keys(data[0]).map((key) => {
-                                return (
-                                  <TableHead key={key}>
-                                    <Select
-                                      onValueChange={(value) => handleFieldMappingChange(value as RequiredField, key)}
-                                    >
-                                      <SelectTrigger>
-                                        <SelectValue placeholder="Req Field"></SelectValue>
-                                      </SelectTrigger>
-                                      <SelectContent>
-                                        <SelectGroup>
-                                          {REQUIRED_FIELDS.map(({ value, label }) => (
-                                            <SelectItem key={value} value={value}>
-                                              {label}
-                                            </SelectItem>
-                                          ))}
-                                        </SelectGroup>
-                                      </SelectContent>
-                                    </Select>
-                                    <span>{key}</span>
-                                  </TableHead>
-                                );
-                              })
-                            : Array.isArray(data[0]) &&
-                              data[0]?.map((_, index) => {
-                                return (
-                                  <TableHead key={index}>
-                                    <Select
-                                      onValueChange={(value) =>
-                                        handleFieldMappingChange(value as RequiredField, `Field ${index + 1}`)
-                                      }
-                                    >
-                                      <SelectTrigger>
-                                        <SelectValue placeholder="Req Field"></SelectValue>
-                                      </SelectTrigger>
-                                      <SelectContent>
-                                        <SelectGroup>
-                                          {REQUIRED_FIELDS.map(({ value, label }) => (
-                                            <SelectItem key={value} value={value}>
-                                              {label}
-                                            </SelectItem>
-                                          ))}
-                                        </SelectGroup>
-                                      </SelectContent>
-                                    </Select>
-                                    <span>{`Field ${index + 1}`}</span>
-                                  </TableHead>
-                                );
-                              })}
-                        </TableRow>
-                      </TableHeader>
-
-                      <TableBody>
-                        {data.map((row, rowIndex) => (
-                          <TableRow key={rowIndex}>
-                            {Array.isArray(row)
-                              ? row.map((cell, cellIndex) => (
-                                  <TableCell className="max-w-[200px] truncate whitespace-nowrap" key={cellIndex}>
-                                    <Tooltip>
-                                      <TooltipTrigger asChild>
-                                        <span>{cell}</span>
-                                      </TooltipTrigger>
-                                      <TooltipContent>{cell}</TooltipContent>
-                                    </Tooltip>
-                                  </TableCell>
-                                ))
-                              : Object.values(row).map((val, i) => (
-                                  <TableCell className="max-w-[200px] truncate whitespace-nowrap" key={i}>
-                                    <Tooltip>
-                                      <TooltipTrigger asChild>
-                                        <span>{val}</span>
-                                      </TooltipTrigger>
-                                      <TooltipContent>{val}</TooltipContent>
-                                    </Tooltip>
-                                  </TableCell>
-                                ))}
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>{" "}
-                  </div>
-                ) : (
-                  <p>No data to display</p>
+                    <CardContent>
+                      {
+                        <DataTable
+                          columns={columns}
+                          data={data}
+                          configFile={configuration}
+                          onConfigChange={handleSetConfiguration}
+                        />
+                      }
+                    </CardContent>
+                  </Card>
                 )}
               </div>
-            </CardContent>
-          </Card>
-        </form>
-      </Form>
-    </div>
+            </>
+          )}
+        </CSVReader>
+      </Card>
+    </>
   );
 }

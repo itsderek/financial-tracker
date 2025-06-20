@@ -20,19 +20,18 @@ app.add_middleware(
     allow_headers=["*"],
 )
 api_router = APIRouter(prefix="/api")
-app.include_router(api_router)
 
 def get_session():
     with Session(engine) as session:
         yield session
 
 
-@app.get("/get-account-types", response_model=List[AccountType])
-async def getAccounts(session: Session = Depends(get_session)):
+@api_router.get("/get-account-types", response_model=List[AccountType])
+async def getAccountTypes(session: Session = Depends(get_session)):
     results = session.exec(select(AccountType)).all()
     return results
 
-@app.post("/create-account-type")
+@api_router.post("/create-account-type")
 def createAccountType(account_type: AccountType, session: Session = Depends(get_session)):
     session.add(account_type)
     session.commit()
@@ -40,8 +39,22 @@ def createAccountType(account_type: AccountType, session: Session = Depends(get_
     return account_type
 
 
-@app.get("/get-accounts", response_model=List[Account])
+@api_router.get("/get-accounts", response_model=List[Account])
 async def getAccounts(session: Session = Depends(get_session)):
     results = session.exec(select(Account)).all()
     return results
 
+@api_router.post("/create-account")
+def createAccount(account: Account, session: Session = Depends(get_session)):
+    print('inside createAccount')
+
+    session.add(account)
+    session.commit()
+    session.refresh(account)
+    return account
+
+
+
+
+
+app.include_router(api_router)

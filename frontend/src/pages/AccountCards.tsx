@@ -16,7 +16,7 @@ function AccountCards() {
   useEffect(() => {
     const fetchAccounts = async () => {
       try {
-        const response = await axios.get<Account[]>("http://localhost:8000/get-accounts");
+        const response = await axios.get<Account[]>("http://localhost:8000/api/get-accounts");
         setAccounts(response.data); // Axios parses JSON automatically
       } catch (error) {
         const err = error as AxiosError;
@@ -36,9 +36,9 @@ function AccountCards() {
     <>
       <h1 className="text-2xl font-bold mb-4">Available Accounts</h1>
 
-      <div className="grid gap-4">
+      <div className="grid grid-cols-3 gap-4">
         {accounts.map((account) => (
-          <Card key={account.id} className="max-w-sm">
+          <Card key={account.id} className="max-w-sm min-w-2xs">
             <CardHeader>
               <CardTitle>{account.name}</CardTitle>
             </CardHeader>
@@ -47,16 +47,15 @@ function AccountCards() {
             </CardContent>
           </Card>
         ))}
+        <Card className="max-w-sm min-w-2xs">
+          <CardHeader>
+            <CardTitle>Add Account</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Button onClick={() => navigate("/add-account")}>+</Button>
+          </CardContent>
+        </Card>
       </div>
-
-      <Card className="max-w-sm">
-        <CardHeader>
-          <CardTitle>Add Account</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Button onClick={() => navigate("/add-account")}>+</Button>
-        </CardContent>
-      </Card>
     </>
   );
 }
